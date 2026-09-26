@@ -44,7 +44,7 @@ User text/PDF
 | AI orchestration | LangGraph |
 | LLM | Groq SDK |
 | PDF parsing | pypdf |
-| Database | MySQL via `DATABASE_URL`; JSON fallback when unset |
+| Database | MySQL via `MYSQL_URL` or MySQL `DATABASE_URL`; JSON fallback when unset |
 
 ## Project Structure
 
@@ -90,13 +90,13 @@ copy .env.example .env
 
 ## MySQL Configuration
 
-Create a database, then set `DATABASE_URL` in `backend/.env`:
+Create a database, then set `MYSQL_URL` in `backend/.env`:
 
 ```env
-DATABASE_URL=mysql://user:password@localhost:3306/deviationiq
+MYSQL_URL=mysql://user:password@host:3306/deviationiq
 ```
 
-If `DATABASE_URL` is blank, the backend saves to `backend/sample_data/qms_ledger.json`.
+`MYSQL_URL` is preferred. `DATABASE_URL` is accepted for compatibility if it also uses a MySQL URL. If both are blank, the backend saves to `backend/sample_data/qms_ledger.json`.
 
 ## Environment Variables
 
@@ -105,6 +105,7 @@ Backend:
 ```env
 GROQ_API_KEY=
 GROQ_MODEL=openai/gpt-oss-20b
+MYSQL_URL=
 DATABASE_URL=
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://gracious-enjoyment-production-524c.up.railway.app
 ```
@@ -161,6 +162,6 @@ python -c "from app.main import app; print(app.title)"
 ## Limitations
 
 - Groq extraction requires a valid `GROQ_API_KEY`.
-- MySQL save/read requires a reachable MySQL database and valid `DATABASE_URL`.
+- MySQL save/read requires a reachable MySQL database and valid `MYSQL_URL` or MySQL `DATABASE_URL`.
 - Scanned image-only PDFs need OCR before upload.
 - Existing API field keys still use some legacy `complaint_*` names internally for compatibility.
