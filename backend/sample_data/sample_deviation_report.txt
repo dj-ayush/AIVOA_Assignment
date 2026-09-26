@@ -1,0 +1,37 @@
+From: compression.ashift@aristabiopharma.com
+To: qa.deviations@aristabiopharma.com
+Subject: Manufacturing Deviation - Tablet Weight Excursion - LST261109A
+
+Dear QA Team,
+
+Please log a manufacturing deviation for the Losartan Potassium Tablets 50 mg batch currently under compression.
+
+Deviation Reference: DEV-2026-00738
+Manufacturing Site: Arista Biopharma, Hyderabad Site
+Area / Block: Block C - Tablet Compression Suite
+Process Step: Tablet compression in-process weight control
+Date / Time Observed: 09 November 2026, 09:20 IST
+Batch / Lot Number: LST261109A
+Manufacturing Date: 09 November 2026
+Expiry Date: October 2028
+Affected Quantity: Approximately 18,500 compressed tablets
+
+Observed Condition:
+The average tablet weight was observed at 262 mg for 20 consecutive tablets during routine in-process monitoring.
+
+Approved / Expected Condition:
+The approved batch manufacturing record specifies a target tablet weight of 250 mg with an acceptable range of 242.5 mg to 257.5 mg.
+
+Actual Deviation:
+The average tablet weight exceeded the approved upper limit by 4.5 mg. Compression was stopped at 09:20 IST, and tablets compressed since the previous acceptable check were segregated pending QA assessment.
+
+Potential Impact:
+Potential impact includes tablet weight variation, possible assay variability, and risk of out-of-specification content uniformity if affected tablets proceed to coating and packing. No segregated tablets have been released to the next processing step.
+
+Initial Severity:
+Major, because an in-process control limit was exceeded for a commercial batch.
+
+Regards,
+Rohan Mehta
+Compression Operator, A Shift
+Arista Biopharma, Hyderabad Site
