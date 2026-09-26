@@ -33,16 +33,17 @@ FastAPI routes
 Create a database and set:
 
 ```env
-DATABASE_URL=mysql://user:password@localhost:3306/deviationiq
+MYSQL_URL=mysql://user:password@host:3306/deviationiq
 ```
 
-The backend creates the `deviations` table automatically. If `DATABASE_URL` is blank, it writes to `sample_data/qms_ledger.json`.
+The backend creates the `deviations` table automatically. `MYSQL_URL` is preferred; `DATABASE_URL` is accepted for compatibility if it also uses a MySQL URL. If both are blank, it writes to `sample_data/qms_ledger.json`.
 
 ## Environment Variables
 
 ```env
 GROQ_API_KEY=
 GROQ_MODEL=openai/gpt-oss-20b
+MYSQL_URL=
 DATABASE_URL=
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://gracious-enjoyment-production-524c.up.railway.app
 ```

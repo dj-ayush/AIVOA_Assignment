@@ -10,7 +10,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import CORS_ORIGINS
-from .database import is_database_configured, load_deviation_records, save_deviation_record
+from .database import database_error_message, is_database_configured, load_deviation_records, save_deviation_record
 from .graph import get_graph
 from .pdf_utils import extract_text_from_pdf
 from .schemas import ChatRequest, ChatResponse, DeviationForm, RiskAssessment
@@ -145,7 +145,10 @@ def _append_to_json_ledger(record: Dict[str, Any]) -> None:
 def save(payload: Dict[str, Any]) -> Dict[str, Any]:
     record = _build_record(payload)
     if is_database_configured():
-        save_deviation_record(record)
+        try:
+            save_deviation_record(record)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=database_error_message(exc)) from exc
         storage = "mysql"
     else:
         _append_to_json_ledger(record)
@@ -161,7 +164,10 @@ def commit(payload: Dict[str, Any]) -> Dict[str, Any]:
 @app.get("/api/ledger")
 def get_ledger() -> List[Dict[str, Any]]:
     if is_database_configured():
-        return load_deviation_records()
+        try:
+            return load_deviation_records()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=database_error_message(exc)) from exc
     if not LEDGER_PATH.exists():
         return []
     try:

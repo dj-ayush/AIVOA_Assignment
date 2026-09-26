@@ -6,7 +6,8 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+MYSQL_URL = os.getenv("MYSQL_URL", "")
+DATABASE_URL = MYSQL_URL or os.getenv("DATABASE_URL", "")
 
 DEFAULT_CORS_ORIGINS = [
     "http://localhost:5173",

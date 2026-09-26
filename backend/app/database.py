@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import mysql.connector
+from mysql.connector import Error as MySQLError
 from mysql.connector import MySQLConnection
 
 from .config import DATABASE_URL
+
+
+class DatabaseConfigurationError(RuntimeError):
+    pass
 
 
 def is_database_configured() -> bool:
@@ -17,21 +22,35 @@ def is_database_configured() -> bool:
 def _connection_config() -> Dict[str, Any]:
     parsed = urlparse(DATABASE_URL)
     if parsed.scheme not in {"mysql", "mysql+mysqlconnector"}:
-        raise ValueError("DATABASE_URL must use mysql:// or mysql+mysqlconnector://")
+        raise DatabaseConfigurationError("Database URL must use mysql:// or mysql+mysqlconnector://")
     database = parsed.path.lstrip("/")
     if not database:
-        raise ValueError("DATABASE_URL must include a database name")
-    return {
+        raise DatabaseConfigurationError("Database URL must include a database name")
+    config = {
         "host": parsed.hostname or "localhost",
         "port": parsed.port or 3306,
         "user": unquote(parsed.username or ""),
         "password": unquote(parsed.password or ""),
         "database": database,
     }
+    query = parse_qs(parsed.query)
+    if "ssl_ca" in query:
+        config["ssl_ca"] = query["ssl_ca"][0]
+    if "ssl_disabled" in query:
+        config["ssl_disabled"] = query["ssl_disabled"][0].lower() in {"1", "true", "yes"}
+    return config
 
 
 def _connect() -> MySQLConnection:
     return mysql.connector.connect(**_connection_config())
+
+
+def database_error_message(exc: Exception) -> str:
+    if isinstance(exc, DatabaseConfigurationError):
+        return f"{exc}. Set MYSQL_URL or DATABASE_URL to a MySQL connection string."
+    if isinstance(exc, MySQLError):
+        return "Could not connect to or write to MySQL. Verify MYSQL_URL/DATABASE_URL and Railway database networking."
+    return "Could not save deviation due to an unexpected persistence error."
 
 
 def ensure_deviation_table() -> None:
