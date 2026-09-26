@@ -106,7 +106,7 @@ Backend:
 GROQ_API_KEY=
 GROQ_MODEL=openai/gpt-oss-20b
 DATABASE_URL=
-CORS_ORIGINS=
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://gracious-enjoyment-production-524c.up.railway.app
 ```
 
 Frontend:
@@ -114,6 +114,8 @@ Frontend:
 ```env
 VITE_API_BASE_URL=http://localhost:8000
 ```
+
+For the Railway production build, `frontend/.env.production` points to `https://aivoaassignment-production.up.railway.app`.
 
 ## Run Commands
 

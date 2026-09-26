@@ -41,6 +41,8 @@ src/
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
+`frontend/.env.production` sets the Railway backend URL for production builds.
+
 ## Installation
 
 ```bash

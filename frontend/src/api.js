@@ -1,5 +1,15 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
+async function request(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch {
+    throw new Error(
+      `Network request failed for ${url}. Check VITE_API_BASE_URL, backend availability, and CORS allowed origins.`
+    );
+  }
+}
+
 async function handle(res) {
   if (!res.ok) {
     let detail = res.statusText;
@@ -15,7 +25,7 @@ async function handle(res) {
 }
 
 export async function sendChatMessage(message, currentForm, currentRisk, history) {
-  const res = await fetch(`${API_BASE}/api/chat`, {
+  const res = await request(`${API_BASE}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -34,7 +44,7 @@ export async function uploadDocument(file, currentForm, currentRisk) {
   formData.append("current_form", JSON.stringify(currentForm));
   formData.append("current_risk", JSON.stringify(currentRisk));
 
-  const res = await fetch(`${API_BASE}/api/upload`, {
+  const res = await request(`${API_BASE}/api/upload`, {
     method: "POST",
     body: formData,
   });
@@ -42,7 +52,7 @@ export async function uploadDocument(file, currentForm, currentRisk) {
 }
 
 export async function saveDeviation(form, riskAssessment) {
-  const res = await fetch(`${API_BASE}/api/save`, {
+  const res = await request(`${API_BASE}/api/save`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ form, risk_assessment: riskAssessment }),
@@ -51,6 +61,6 @@ export async function saveDeviation(form, riskAssessment) {
 }
 
 export async function checkHealth() {
-  const res = await fetch(`${API_BASE}/api/health`);
+  const res = await request(`${API_BASE}/api/health`);
   return handle(res);
 }

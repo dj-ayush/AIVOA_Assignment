@@ -44,10 +44,10 @@ The backend creates the `deviations` table automatically. If `DATABASE_URL` is b
 GROQ_API_KEY=
 GROQ_MODEL=openai/gpt-oss-20b
 DATABASE_URL=
-CORS_ORIGINS=
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://gracious-enjoyment-production-524c.up.railway.app
 ```
 
-Blank `CORS_ORIGINS` falls back to local Vite origins.
+Blank `CORS_ORIGINS` falls back to local Vite origins plus the Railway frontend origin. Additional comma-separated origins may be supplied with `CORS_ORIGINS`.
 
 ## Installation
 

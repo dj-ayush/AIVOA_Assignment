@@ -48,7 +48,7 @@ export default function App() {
       {
         id: nextId(),
         role: "assistant",
-        content: `Something went wrong talking to the backend: ${err.message}. Make sure the FastAPI server is running and GROQ_API_KEY is set.`,
+        content: `Something went wrong talking to the backend: ${err.message}`,
       },
     ]);
   }, []);
