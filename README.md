@@ -34,28 +34,36 @@ The application is intentionally scoped to deviation intake. It does not impleme
 
 ```mermaid
 flowchart LR
-  User[QA user] --> UI[React + Vite UI]
-  UI --> API[src/api.js]
-  API --> FastAPI[FastAPI app.main]
-  FastAPI --> Graph[LangGraph StateGraph]
-  Graph --> Router{Route}
-  Router --> Doc[document_extract]
-  Router --> Intent[classify_intent]
-  Intent --> New[extract_new]
-  Intent --> Edit[edit_fields]
-  Intent --> General[general_chat]
-  Doc --> Groq[Groq structured output]
+  User["QA User"] --> UI["React + Vite UI"]
+  UI --> API["src/api.js"]
+  API --> FastAPI["FastAPI Application"]
+  FastAPI --> Graph["LangGraph StateGraph"]
+
+  Graph --> Router{"Route"}
+
+  Router --> Doc["Document Extraction"]
+  Router --> Intent["Intent Classification"]
+
+  Intent --> New["New Deviation"]
+  Intent --> Edit["Field Correction"]
+  Intent --> General["General Chat"]
+
+  Doc --> Groq["Groq Structured Output"]
   New --> Groq
   Edit --> Groq
-  General --> GroqText[Groq text response]
-  Groq --> Schemas[Pydantic schemas]
-  GroqText --> Response[ChatResponse]
+  General --> GroqText["Groq Text Response"]
+
+  Groq --> Schemas["Pydantic Validation"]
+  GroqText --> Response["ChatResponse"]
   Schemas --> Response
-  Response --> UIState[React form + copilot state]
-  UIState --> Save[/api/save]
-  Save --> Persist{Persistence}
-  Persist --> MySQL[MySQL deviations table]
-  Persist --> Ledger[JSON ledger fallback]
+
+  Response --> UIState["React Form + Copilot State"]
+
+  UIState --> Save["POST /api/save"]
+  Save --> Persist{"Persistence"}
+
+  Persist --> MySQL["MySQL Deviations Table"]
+  Persist --> Ledger["JSON Ledger Fallback"]
 ```
 
 ## How It Works
