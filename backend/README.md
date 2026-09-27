@@ -1,97 +1,212 @@
 # DeviationIQ Backend
 
-FastAPI backend for DeviationIQ. It receives text and document inputs, routes them through LangGraph, calls Groq for structured extraction/patching, validates responses with Pydantic, and saves finalized deviations to MySQL or a local JSON fallback.
+FastAPI service for deviation extraction, correction, document processing, impact/severity assessment, and persistence.
 
-## Architecture
+## Runtime Entry Point
+
+The backend application is created in:
 
 ```text
-FastAPI
-  /api/chat    -> LangGraph text route
-  /api/upload  -> PDF/TXT/EML text extraction -> LangGraph document route
-  /api/save    -> MySQL or JSON persistence
-
-LangGraph
-  START
-  -> document_extract, when uploaded document text exists
-  -> classify_intent, for chat text
-       -> extract_new
-       -> edit_fields
-       -> general_chat
-  -> END
+backend/app/main.py
 ```
+
+It registers FastAPI routes, configures CORS, invokes the LangGraph workflow, extracts uploaded document text, and persists saved deviation records.
+
+## Request Flow
+
+```mermaid
+flowchart TD
+  Client[React frontend] --> Routes[FastAPI routes in main.py]
+  Routes --> Upload{Document upload?}
+  Upload -->|yes| ExtractText[pdf_utils.extract_text_from_pdf or text decode]
+  Upload -->|no| Chat[ChatRequest]
+  ExtractText --> Graph[get_graph().invoke]
+  Chat --> Graph
+  Graph --> Groq[llm.generate_structured / generate_text]
+  Groq --> Schemas[Pydantic validation]
+  Schemas --> Merge[merge non-null fields]
+  Merge --> Response[ChatResponse]
+  Routes --> Save[/api/save]
+  Save --> Persist{is_database_configured}
+  Persist -->|yes| MySQL[database.py]
+  Persist -->|no| Ledger[sample_data/qms_ledger.json]
+```
+
+## FastAPI Routes
+
+| Method | Endpoint | Function | Purpose |
+|---|---|---|---|
+| `GET` | `/api/health` | `health` | Returns service health |
+| `POST` | `/api/chat` | `chat` | Handles pasted text, corrections, and general messages |
+| `POST` | `/api/upload` | `upload_document` | Handles PDF/TXT/EML extraction |
+| `POST` | `/api/save` | `save` | Persists finalized deviation |
+| `POST` | `/api/commit` | `commit` | Compatibility alias for save |
+| `GET` | `/api/ledger` | `get_ledger` | Reads saved records |
 
 ## LangGraph Workflow
 
-Implemented in `app/graph.py`:
+Defined in `app/graph.py`.
 
-| Node | Purpose |
-|---|---|
-| `classify_intent` | Classifies chat input as `new_deviation`, `edit_fields`, or `general` |
-| `extract_new` | Extracts a full `DeviationForm` and `RiskAssessment` from new text |
-| `edit_fields` | Produces patch-only updates for corrections |
-| `document_extract` | Extracts structured data from uploaded document text |
-| `general_chat` | Replies without modifying form state |
+```mermaid
+flowchart TD
+  Start([START]) --> Entry{document_text?}
+  Entry -->|yes| Document[document_extract_node]
+  Entry -->|no| Intent[classify_intent_node]
+  Intent -->|new_deviation| Extract[extract_new_node]
+  Intent -->|edit_fields| Edit[edit_fields_node]
+  Intent -->|general| General[general_chat_node]
+  Document --> End([END])
+  Extract --> End
+  Edit --> End
+  General --> End
+```
 
-## Groq / LLM Integration
+Node behavior:
+
+- `classify_intent_node`: returns `IntentResult`.
+- `extract_new_node`: returns a merged `DeviationForm` and `RiskAssessment`.
+- `edit_fields_node`: returns patch-only changes from `PatchOutput`.
+- `document_extract_node`: extracts from uploaded document text.
+- `general_chat_node`: returns text only and preserves current form/risk state.
+
+`_merge_non_null(...)` is the key update rule: fields returned as `null` do not overwrite existing state.
+
+## Groq Integration
 
 Implemented in `app/llm.py`.
 
-- Uses `GROQ_API_KEY` and `GROQ_MODEL`.
-- `generate_structured(...)` requests JSON conforming to Pydantic schemas.
-- `generate_text(...)` handles general copilot replies.
-- Missing `GROQ_API_KEY` raises a clear runtime error during AI calls.
+- `get_client()` creates a Groq client from `GROQ_API_KEY`.
+- `generate_structured(...)` requests JSON schema output and validates it with Pydantic.
+- `generate_text(...)` is used only by `general_chat_node`.
+- `_strict_json_schema(...)` marks object schemas as strict and disallows additional properties.
 
-## Pydantic Schemas
+The configured model is `GROQ_MODEL`, defaulting to `openai/gpt-oss-20b`.
+
+## Schemas
 
 Implemented in `app/schemas.py`.
 
-| Schema | Purpose |
+### Deviation form
+
+| Field | Type | Notes |
+|---|---|---|
+| `complaint_source` | `Optional[str]` | Legacy key for source/reporting channel |
+| `customer_name` | `Optional[str]` | Legacy key for reporter name/role/site/company |
+| `product_name` | `Optional[str]` | Product or API |
+| `product_strength` | `Optional[str]` | Strength or grade |
+| `batch_lot_number` | `Optional[str]` | Batch or lot identifier |
+| `affected_quantity` | `Optional[str]` | Quantity and units from source |
+| `manufacturing_date` | `Optional[str]` | Manufacturing date |
+| `expiry_date` | `Optional[str]` | Expiry date |
+| `originating_site_block` | `Optional[str]` | Explicit site/block/suite/line only |
+| `impacted_npm` | `Optional[str]` | Non-product material impact |
+| `complaint_category` | `Optional[str]` | Legacy key for deviation category |
+| `complaint_description` | `Optional[str]` | Legacy key for deviation summary |
+
+### Impact and severity
+
+| Field | Type | Notes |
+|---|---|---|
+| `severity` | `Optional[str]` | Minor, Major, or Critical |
+| `suggested_next_action` | `Optional[str]` | Recommended QA action |
+| `initial_risk_assessment` | `Optional[str]` | Impact, quality risk, containment, investigation status |
+
+### API and graph models
+
+| Model | Used by |
 |---|---|
-| `DeviationForm` | Structured form fields populated by AI |
-| `RiskAssessment` | Severity, recommended action, impact assessment |
-| `ExtractionOutput` | Full output for new deviations/documents |
-| `PatchOutput` | Patch-only output for natural-language corrections |
-| `IntentResult` | LangGraph intent route result |
-| `ChatRequest` / `ChatResponse` | `/api/chat` request/response models |
+| `ExtractionOutput` | `extract_new_node`, `document_extract_node` |
+| `PatchOutput` | `edit_fields_node` |
+| `IntentResult` | `classify_intent_node` |
+| `ChatRequest` | `POST /api/chat` |
+| `ChatResponse` | `POST /api/chat`, `POST /api/upload` |
 
-Note: some internal field names still use legacy keys such as `complaint_description` for compatibility with existing frontend state and prompts. User-facing labels use deviation terminology.
+## Prompt Behavior
 
-## PDF And Document Extraction
+Prompts are in `app/prompts.py`.
 
-`app/pdf_utils.py` uses `pypdf` to extract text from uploaded PDF bytes. `/api/upload` also accepts TXT/EML-style text files and sends extracted text into the LangGraph document route.
+The extraction prompts instruct the model to:
 
-Image-only scanned PDFs are not OCR processed.
+- leave unsupported fields as null
+- avoid inferring site/block from product type or site name alone
+- avoid inventing root causes
+- produce deviation-specific categories
+- generate impact/severity reasoning from observed quality risk and containment status
 
-## MySQL Persistence And Fallback
+The edit prompt instructs the model to return a patch, not a full rewritten form. Risk fields are only re-evaluated when the correction changes the risk picture.
 
-Implemented in `app/database.py` and `app/main.py`.
+## Document Extraction
 
-- Preferred variable: `MYSQL_URL`
-- Compatibility variable: MySQL-formatted `DATABASE_URL`
-- Table: `deviations`
-- Columns: `id`, `committed_at`, `form`, `risk_assessment`
-- JSON fallback: `sample_data/qms_ledger.json` when no MySQL URL is configured
+`POST /api/upload` accepts multipart uploads.
 
-Example:
+Supported extensions:
 
-```env
-MYSQL_URL=mysql://user:password@host:3306/deviationiq
+- `.pdf`
+- `.txt`
+- `.eml`
+
+PDF handling:
+
+```text
+UploadFile bytes -> pypdf.PdfReader -> page.extract_text() -> LangGraph document_extract
 ```
 
-The backend creates the `deviations` table automatically. Invalid or unreachable MySQL configuration returns a JSON `503` instead of an unhandled server error.
+TXT/EML handling:
 
-## API Endpoints
+```text
+UploadFile bytes -> UTF-8 decode with ignored errors -> LangGraph document_extract
+```
 
-| Method | Route | Description |
-|---|---|---|
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/chat` | Text extraction, correction, or general reply |
-| `POST` | `/api/upload` | PDF/TXT/EML document extraction |
-| `POST` | `/api/save` | Save finalized deviation |
-| `POST` | `/api/commit` | Compatibility alias for `/api/save` |
-| `GET` | `/api/ledger` | Read saved records |
+If extracted text is empty, the endpoint returns `422`.
 
-## Environment Variables
+## Persistence
+
+Implemented in `app/database.py`.
+
+Connection source:
+
+```text
+MYSQL_URL preferred
+DATABASE_URL fallback, only if it is a MySQL URL
+```
+
+Driver:
+
+```text
+mysql-connector-python
+```
+
+Table:
+
+```sql
+CREATE TABLE IF NOT EXISTS deviations (
+  id VARCHAR(32) PRIMARY KEY,
+  committed_at VARCHAR(40) NOT NULL,
+  form JSON NOT NULL,
+  risk_assessment JSON NOT NULL
+);
+```
+
+Save flow:
+
+```text
+/api/save
+-> _build_record()
+-> save_deviation_record(), if database configured
+-> _append_to_json_ledger(), if not configured
+```
+
+Fallback file:
+
+```text
+backend/sample_data/qms_ledger.json
+```
+
+Database configuration errors and MySQL errors are returned as JSON `503` responses.
+
+## Configuration
+
+`.env.example` contains:
 
 ```env
 GROQ_API_KEY=
@@ -101,9 +216,17 @@ DATABASE_URL=
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://gracious-enjoyment-production-524c.up.railway.app
 ```
 
-`CORS_ORIGINS` can add comma-separated origins. The backend always includes local Vite origins and the current Railway frontend origin.
+| Variable | Required | Description |
+|---|---:|---|
+| `GROQ_API_KEY` | Yes for AI calls | Groq provider key |
+| `GROQ_MODEL` | No | Groq model name |
+| `MYSQL_URL` | No | Preferred MySQL connection string |
+| `DATABASE_URL` | No | MySQL-compatible fallback connection string |
+| `CORS_ORIGINS` | No | Extra comma-separated CORS origins |
 
-## Setup And Run
+Default CORS origins are defined in `app/config.py` and include local Vite origins plus the current Railway frontend origin.
+
+## Local Run
 
 ```bash
 cd backend
@@ -114,46 +237,6 @@ copy .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-Health check:
-
-```bash
-curl http://localhost:8000/api/health
-```
-
-## API Examples
-
-Chat:
-
-```bash
-curl -X POST http://localhost:8000/api/chat ^
-  -H "Content-Type: application/json" ^
-  -d "{\"message\":\"Log deviation for Losartan tablet weight excursion\",\"current_form\":{},\"current_risk\":{}}"
-```
-
-Save:
-
-```bash
-curl -X POST http://localhost:8000/api/save ^
-  -H "Content-Type: application/json" ^
-  -d "{\"form\":{\"product_name\":\"Losartan Potassium Tablets\",\"complaint_description\":\"Tablet weight excursion observed\"},\"risk_assessment\":{\"severity\":\"Major\"}}"
-```
-
-## Sample Data
-
-Files:
-
-- `sample_data/sample_deviation_report.pdf`
-- `sample_data/sample_deviation_report.txt`
-
-Regenerate the PDF:
-
-```bash
-cd backend/sample_data
-python generate_sample_pdf.py
-```
-
-The generator uses `reportlab`; PDF extraction uses `pypdf`.
-
 ## Validation
 
 ```bash
@@ -161,7 +244,13 @@ python -m compileall app
 python -c "from app.main import app; print(app.title)"
 ```
 
-Optional save smoke test:
+Optional route check:
+
+```bash
+curl http://localhost:8000/api/health
+```
+
+Optional save check:
 
 ```bash
 curl -X POST http://localhost:8000/api/save ^
@@ -169,10 +258,27 @@ curl -X POST http://localhost:8000/api/save ^
   -d "{\"form\":{},\"risk_assessment\":{}}"
 ```
 
-## Current Limitations And Pending Work
+## Deployment Notes
 
-- Groq calls require a valid `GROQ_API_KEY`.
-- MySQL persistence requires a reachable `MYSQL_URL` or MySQL `DATABASE_URL`.
-- JSON fallback is not durable production storage.
+Backend deployment target:
+
+```text
+https://aivoaassignment-production.up.railway.app
+```
+
+Required Railway variables for live AI and database persistence:
+
+```env
+GROQ_API_KEY=<secret>
+MYSQL_URL=mysql://USER:PASSWORD@HOST:PORT/DATABASE
+```
+
+Do not expose provider keys or database credentials to the frontend.
+
+## Current Limitations
+
 - No OCR for scanned PDFs.
-- No authentication, authorization, audit trail UI, or user management.
+- No authentication or authorization.
+- JSON ledger fallback is not production persistence.
+- No migration framework; table creation is handled directly in `database.py`.
+- No backend test suite beyond compile/import/API smoke checks.
