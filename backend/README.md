@@ -16,20 +16,26 @@ It registers FastAPI routes, configures CORS, invokes the LangGraph workflow, ex
 
 ```mermaid
 flowchart TD
-  Client[React frontend] --> Routes[FastAPI routes in main.py]
-  Routes --> Upload{Document upload?}
-  Upload -->|yes| ExtractText[pdf_utils.extract_text_from_pdf or text decode]
-  Upload -->|no| Chat[ChatRequest]
-  ExtractText --> Graph[get_graph().invoke]
+  Client["React Frontend"] --> Routes["FastAPI Routes"]
+
+  Routes --> Upload{"Document Upload?"}
+
+  Upload -->|Yes| ExtractText["Extract document text"]
+  Upload -->|No| Chat["Chat Request"]
+
+  ExtractText --> Graph["LangGraph Workflow"]
   Chat --> Graph
-  Graph --> Groq[llm.generate_structured / generate_text]
-  Groq --> Schemas[Pydantic validation]
-  Schemas --> Merge[merge non-null fields]
-  Merge --> Response[ChatResponse]
-  Routes --> Save[/api/save]
-  Save --> Persist{is_database_configured}
-  Persist -->|yes| MySQL[database.py]
-  Persist -->|no| Ledger[sample_data/qms_ledger.json]
+
+  Graph --> Groq["Groq LLM"]
+  Groq --> Schemas["Pydantic Validation"]
+  Schemas --> Merge["Merge non-null fields"]
+  Merge --> Response["Chat Response"]
+
+  Routes --> Save["POST /api/save"]
+  Save --> Persist{"Database Configured?"}
+
+  Persist -->|Yes| MySQL["MySQL Database"]
+  Persist -->|No| Ledger["JSON Ledger Fallback"]
 ```
 
 ## FastAPI Routes
