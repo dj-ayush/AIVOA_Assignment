@@ -4,7 +4,7 @@ AI-powered pharmaceutical deviation intake and management system.
 
 ## Demo / Deployment
 
-- Repository: [https://github.com/dj-ayush/AIVOA_Assignment](https://github.com/dj-ayush/AIVOA_Assignment)
+- Repository: [https://github.com/dj-ayush/AIVOA_Assignment](https://github.com/dj-ayush/DeviationIQ)
 - Frontend: [https://gracious-enjoyment-production-524c.up.railway.app/](https://gracious-enjoyment-production-524c.up.railway.app/)
 - Backend API: [https://aivoaassignment-production.up.railway.app](https://aivoaassignment-production.up.railway.app)
 - OpenAPI: [https://aivoaassignment-production.up.railway.app/openapi.json](https://aivoaassignment-production.up.railway.app/openapi.json)
