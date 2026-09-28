@@ -1,0 +1,19 @@
+[
+  {
+    "id": "sample_deviation_report",
+    "description": "Current repository sample deviation report extracted through the document workflow.",
+    "input_path": "../backend/sample_data/sample_deviation_report.txt",
+    "workflow_type": "document_upload",
+    "expected_form": {
+      "product_name": "Losartan Potassium Tablets",
+      "product_strength": "50 mg",
+      "batch_lot_number": "LST261109A",
+      "affected_quantity": "Approximately 18,500 compressed tablets",
+      "originating_site_block": "Block C - Tablet Compression Suite",
+      "complaint_category": "Manufacturing Process Deviation - Tablet Weight Excursion"
+    },
+    "expected_risk": {
+      "severity": "Major"
+    }
+  }
+]

@@ -12,7 +12,7 @@ byte-for-byte preserved.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -74,3 +74,4 @@ class ChatResponse(BaseModel):
     changed_fields: List[str]
     status: Literal["pending_triage", "ready_to_save"]
     intent: Optional[str] = None
+    observability: Optional[Dict[str, Any]] = None

@@ -236,6 +236,7 @@ The backend is a FastAPI application under `backend/app`.
 | `POST` | `/api/save` | Save finalized deviation | `{ form, risk_assessment }` JSON | `{ status, record_id, storage }` |
 | `POST` | `/api/commit` | Compatibility alias for save | Same as `/api/save` | Same as `/api/save` |
 | `GET` | `/api/ledger` | Read saved records | None | List of saved records |
+| `GET` | `/api/observability` | Inspect recent in-memory metrics | None | Workflow, API, LLM, validation, and database events |
 
 ## Database / Persistence
 
@@ -395,14 +396,46 @@ Example correction:
 Actually the affected quantity is 16,800 tablets.
 ```
 
+## Evaluation And Observability
+
+DeviationIQ includes a lightweight observability layer in `backend/app/observability.py`. It records:
+
+- API request latency, status code, and success/failure
+- LangGraph workflow duration, executed node count, node timings, and success/failure
+- Groq call duration, model, success/failure, retry attempts, and token usage when returned by Groq
+- Pydantic structured-output validation duration and failures
+- MySQL table/create, insert, and read operation duration
+
+Recent in-memory metrics are available at:
+
+```text
+GET /api/observability
+```
+
+The reproducible evaluation runner uses `evaluation/cases.json`, executes the real graph, compares expected fields with actual output, and writes:
+
+```text
+evaluation/results.json
+evaluation/results.md
+```
+
+Run it from the repository root:
+
+```bash
+python evaluation/run_evaluation.py
+```
+
+See `evaluation/README.md` for the case format, metric definitions, and limitations.
+
 ## Testing / Validation
 
-The repository does not include a formal unit/integration test suite. Current validation commands are:
+Current validation commands:
 
 ```bash
 cd backend
 python -m compileall app
 python -c "from app.main import app; print(app.title)"
+python -m unittest discover tests
 ```
 
 ```bash

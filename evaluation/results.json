@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-09-28T12:47:01.493871+00:00",
+  "model": "openai/gpt-oss-20b",
+  "summary": {
+    "case_count": 1,
+    "completed_cases": 1,
+    "failed_cases": 0,
+    "expected_fields": 7,
+    "matched_fields": 7,
+    "mismatched_fields": 0,
+    "workflow_durations_ms": [
+      12100.408
+    ]
+  },
+  "cases": [
+    {
+      "id": "sample_deviation_report",
+      "description": "Current repository sample deviation report extracted through the document workflow.",
+      "status": "passed",
+      "input_path": "backend\\sample_data\\sample_deviation_report.txt",
+      "model": "openai/gpt-oss-20b",
+      "observability": {
+        "trace_id": "a1cea96ebaf244818464122f96942604",
+        "workflow_type": "evaluation:document_upload",
+        "total_duration_ms": 12100.408,
+        "executed_node_count": 1,
+        "success": true,
+        "error": null,
+        "retry_attempts": 0,
+        "correction_retry_time_ms": null,
+        "nodes": [
+          {
+            "name": "document_extract",
+            "duration_ms": 12094.819,
+            "success": true
+          }
+        ],
+        "llm_calls": [
+          {
+            "operation": "structured",
+            "model": "openai/gpt-oss-20b",
+            "schema": "ExtractionOutput",
+            "duration_ms": 11834.1,
+            "success": true,
+            "token_usage": {
+              "prompt_tokens": 1972,
+              "completion_tokens": 1025,
+              "total_tokens": 2997,
+              "queue_time": 0.332552349,
+              "prompt_time": 0.100582884,
+              "completion_time": 1.157210478,
+              "total_time": 1.2577933620000001
+            },
+            "retry_attempts": 0
+          }
+        ],
+        "validations": [
+          {
+            "schema": "ExtractionOutput",
+            "duration_ms": 0.061,
+            "success": true
+          }
+        ],
+        "summary": {
+          "llm_call_count": 1,
+          "llm_failures": 0,
+          "validation_count": 1,
+          "validation_failures": 0
+        }
+      },
+      "field_comparisons": {
+        "form": [
+          {
+            "field": "product_name",
+            "expected": "Losartan Potassium Tablets",
+            "actual": "Losartan Potassium Tablets",
+            "match": true
+          },
+          {
+            "field": "product_strength",
+            "expected": "50 mg",
+            "actual": "50 mg",
+            "match": true
+          },
+          {
+            "field": "batch_lot_number",
+            "expected": "LST261109A",
+            "actual": "LST261109A",
+            "match": true
+          },
+          {
+            "field": "affected_quantity",
+            "expected": "Approximately 18,500 compressed tablets",
+            "actual": "Approximately 18,500 compressed tablets",
+            "match": true
+          },
+          {
+            "field": "originating_site_block",
+            "expected": "Block C - Tablet Compression Suite",
+            "actual": "Block C - Tablet Compression Suite",
+            "match": true
+          },
+          {
+            "field": "complaint_category",
+            "expected": "Manufacturing Process Deviation - Tablet Weight Excursion",
+            "actual": "Manufacturing Process Deviation - Tablet Weight Excursion",
+            "match": true
+          }
+        ],
+        "risk_assessment": [
+          {
+            "field": "severity",
+            "expected": "Major",
+            "actual": "Major",
+            "match": true
+          }
+        ]
+      },
+      "summary": {
+        "expected_fields": 7,
+        "matched_fields": 7,
+        "mismatched_fields": 0
+      }
+    }
+  ],
+  "notes": {
+    "token_usage": "included only when returned by Groq",
+    "retry_attempts": "the current application has no retry loop, so successful runs report 0",
+    "failed_cases": "failed cases keep the real error message and do not fabricate metrics"
+  }
+}

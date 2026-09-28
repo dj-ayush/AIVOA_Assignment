@@ -27,6 +27,7 @@ from langgraph.graph import END, StateGraph
 
 from . import prompts
 from .llm import generate_structured, generate_text
+from .observability import observe_node
 from .schemas import ExtractionOutput, IntentResult, PatchOutput
 
 
@@ -50,57 +51,62 @@ def _merge_non_null(base: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, An
 
 
 def classify_intent_node(state: GraphState) -> GraphState:
-    context = (
-        f"CURRENT_FORM (json): {state['current_form']}\n"
-        f"USER_MESSAGE: {state['user_message']}"
-    )
-    result: IntentResult = generate_structured(prompts.INTENT_SYSTEM, context, IntentResult)
-    return {"intent": result.intent}
+    with observe_node("classify_intent"):
+        context = (
+            f"CURRENT_FORM (json): {state['current_form']}\n"
+            f"USER_MESSAGE: {state['user_message']}"
+        )
+        result: IntentResult = generate_structured(prompts.INTENT_SYSTEM, context, IntentResult)
+        return {"intent": result.intent}
 
 
 def extract_new_node(state: GraphState) -> GraphState:
-    out: ExtractionOutput = generate_structured(
-        prompts.EXTRACT_NEW_SYSTEM, state["user_message"], ExtractionOutput
-    )
-    return {
-        "result_form": _merge_non_null(state["current_form"], out.form.model_dump()),
-        "result_risk": _merge_non_null(state["current_risk"], out.risk_assessment.model_dump()),
-        "reply": out.reply_message,
-    }
+    with observe_node("extract_new"):
+        out: ExtractionOutput = generate_structured(
+            prompts.EXTRACT_NEW_SYSTEM, state["user_message"], ExtractionOutput
+        )
+        return {
+            "result_form": _merge_non_null(state["current_form"], out.form.model_dump()),
+            "result_risk": _merge_non_null(state["current_risk"], out.risk_assessment.model_dump()),
+            "reply": out.reply_message,
+        }
 
 
 def edit_fields_node(state: GraphState) -> GraphState:
-    context = (
-        f"CURRENT_FORM (json): {state['current_form']}\n"
-        f"CURRENT_RISK_ASSESSMENT (json): {state['current_risk']}\n"
-        f"USER_CORRECTION: {state['user_message']}"
-    )
-    out: PatchOutput = generate_structured(prompts.EDIT_SYSTEM, context, PatchOutput)
-    return {
-        "result_form": _merge_non_null(state["current_form"], out.form_patch.model_dump()),
-        "result_risk": _merge_non_null(state["current_risk"], out.risk_patch.model_dump()),
-        "reply": out.reply_message,
-    }
+    with observe_node("edit_fields"):
+        context = (
+            f"CURRENT_FORM (json): {state['current_form']}\n"
+            f"CURRENT_RISK_ASSESSMENT (json): {state['current_risk']}\n"
+            f"USER_CORRECTION: {state['user_message']}"
+        )
+        out: PatchOutput = generate_structured(prompts.EDIT_SYSTEM, context, PatchOutput)
+        return {
+            "result_form": _merge_non_null(state["current_form"], out.form_patch.model_dump()),
+            "result_risk": _merge_non_null(state["current_risk"], out.risk_patch.model_dump()),
+            "reply": out.reply_message,
+        }
 
 
 def document_extract_node(state: GraphState) -> GraphState:
-    out: ExtractionOutput = generate_structured(
-        prompts.DOCUMENT_SYSTEM, state["document_text"] or "", ExtractionOutput
-    )
-    return {
-        "result_form": _merge_non_null(state["current_form"], out.form.model_dump()),
-        "result_risk": _merge_non_null(state["current_risk"], out.risk_assessment.model_dump()),
-        "reply": out.reply_message,
-    }
+    with observe_node("document_extract"):
+        out: ExtractionOutput = generate_structured(
+            prompts.DOCUMENT_SYSTEM, state["document_text"] or "", ExtractionOutput
+        )
+        return {
+            "result_form": _merge_non_null(state["current_form"], out.form.model_dump()),
+            "result_risk": _merge_non_null(state["current_risk"], out.risk_assessment.model_dump()),
+            "reply": out.reply_message,
+        }
 
 
 def general_chat_node(state: GraphState) -> GraphState:
-    reply = generate_text(prompts.GENERAL_SYSTEM, state["user_message"])
-    return {
-        "result_form": state["current_form"],
-        "result_risk": state["current_risk"],
-        "reply": reply,
-    }
+    with observe_node("general_chat"):
+        reply = generate_text(prompts.GENERAL_SYSTEM, state["user_message"])
+        return {
+            "result_form": state["current_form"],
+            "result_risk": state["current_risk"],
+            "reply": reply,
+        }
 
 
 def _route_entry(state: GraphState) -> str:

@@ -9,6 +9,7 @@ from mysql.connector import Error as MySQLError
 from mysql.connector import MySQLConnection
 
 from .config import DATABASE_URL
+from .observability import elapsed_ms, now_ms, record_db_operation
 
 
 class DatabaseConfigurationError(RuntimeError):
@@ -56,38 +57,50 @@ def database_error_message(exc: Exception) -> str:
 def ensure_deviation_table() -> None:
     if not is_database_configured():
         return
-    with _connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS deviations (
-                    id VARCHAR(32) PRIMARY KEY,
-                    committed_at VARCHAR(40) NOT NULL,
-                    form JSON NOT NULL,
-                    risk_assessment JSON NOT NULL
+    start = now_ms()
+    try:
+        with _connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS deviations (
+                        id VARCHAR(32) PRIMARY KEY,
+                        committed_at VARCHAR(40) NOT NULL,
+                        form JSON NOT NULL,
+                        risk_assessment JSON NOT NULL
+                    )
+                    """
                 )
-                """
-            )
-        conn.commit()
+            conn.commit()
+    except Exception as exc:
+        record_db_operation(operation="ensure_deviation_table", duration_ms=elapsed_ms(start), success=False, error=exc)
+        raise
+    record_db_operation(operation="ensure_deviation_table", duration_ms=elapsed_ms(start), success=True)
 
 
 def save_deviation_record(record: Dict[str, Any]) -> None:
     ensure_deviation_table()
-    with _connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO deviations (id, committed_at, form, risk_assessment)
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    record["id"],
-                    record["committed_at"],
-                    json.dumps(record["form"]),
-                    json.dumps(record["risk_assessment"]),
-                ),
-            )
-        conn.commit()
+    start = now_ms()
+    try:
+        with _connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO deviations (id, committed_at, form, risk_assessment)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (
+                        record["id"],
+                        record["committed_at"],
+                        json.dumps(record["form"]),
+                        json.dumps(record["risk_assessment"]),
+                    ),
+                )
+            conn.commit()
+    except Exception as exc:
+        record_db_operation(operation="save_deviation_record", duration_ms=elapsed_ms(start), success=False, error=exc)
+        raise
+    record_db_operation(operation="save_deviation_record", duration_ms=elapsed_ms(start), success=True)
 
 
 def _decode_json(value: Any) -> Any:
@@ -100,23 +113,29 @@ def _decode_json(value: Any) -> Any:
 
 def load_deviation_records() -> List[Dict[str, Any]]:
     ensure_deviation_table()
-    with _connect() as conn:
-        with conn.cursor(dictionary=True) as cur:
-            cur.execute(
-                """
-                SELECT id, committed_at, form, risk_assessment
-                FROM deviations
-                ORDER BY committed_at DESC
-                """
-            )
-            records = []
-            for row in cur.fetchall():
-                records.append(
-                    {
-                        "id": row["id"],
-                        "committed_at": row["committed_at"],
-                        "form": _decode_json(row["form"]),
-                        "risk_assessment": _decode_json(row["risk_assessment"]),
-                    }
+    start = now_ms()
+    try:
+        with _connect() as conn:
+            with conn.cursor(dictionary=True) as cur:
+                cur.execute(
+                    """
+                    SELECT id, committed_at, form, risk_assessment
+                    FROM deviations
+                    ORDER BY committed_at DESC
+                    """
                 )
-            return records
+                records = []
+                for row in cur.fetchall():
+                    records.append(
+                        {
+                            "id": row["id"],
+                            "committed_at": row["committed_at"],
+                            "form": _decode_json(row["form"]),
+                            "risk_assessment": _decode_json(row["risk_assessment"]),
+                        }
+                    )
+                record_db_operation(operation="load_deviation_records", duration_ms=elapsed_ms(start), success=True)
+                return records
+    except Exception as exc:
+        record_db_operation(operation="load_deviation_records", duration_ms=elapsed_ms(start), success=False, error=exc)
+        raise

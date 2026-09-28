@@ -48,6 +48,7 @@ flowchart TD
 | `POST` | `/api/save` | `save` | Persists finalized deviation |
 | `POST` | `/api/commit` | `commit` | Compatibility alias for save |
 | `GET` | `/api/ledger` | `get_ledger` | Reads saved records |
+| `GET` | `/api/observability` | `get_observability` | Returns recent in-memory metrics |
 
 ## LangGraph Workflow
 
@@ -243,11 +244,51 @@ copy .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
+## Observability
+
+Instrumentation is implemented in `app/observability.py` and uses only the Python standard library.
+
+| Area | Where measured | Metrics |
+| ---- | -------------- | ------- |
+| API | FastAPI middleware in `app/main.py` | method, path, status code, latency, success/failure |
+| Workflow | `observe_workflow()` around graph execution | total duration, success/failure, executed node count |
+| LangGraph nodes | node wrappers in `app/graph.py` | node name, duration, success/failure |
+| LLM calls | `app/llm.py` | model, operation, duration, success/failure, token usage when Groq returns it |
+| Validation | `app/llm.py` after JSON parsing | Pydantic schema, duration, success/failure |
+| Database | `app/database.py` | table creation, insert, read duration and success/failure |
+
+The current application has no LLM retry loop, so retry attempts are recorded as `0`; correction retry time is not measured.
+
+Inspect recent metrics:
+
+```bash
+curl http://localhost:8000/api/observability
+```
+
+## Evaluation
+
+The repository-level evaluation runner executes the real graph against cases in `evaluation/cases.json`.
+
+```bash
+cd ..
+python evaluation/run_evaluation.py
+```
+
+Outputs:
+
+```text
+evaluation/results.json
+evaluation/results.md
+```
+
+See `evaluation/README.md` for the case format and metric definitions.
+
 ## Validation
 
 ```bash
 python -m compileall app
 python -c "from app.main import app; print(app.title)"
+python -m unittest discover tests
 ```
 
 Optional route check:

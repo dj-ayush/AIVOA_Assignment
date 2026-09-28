@@ -8,10 +8,12 @@ from typing import Any, Dict, List
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.requests import Request
 
 from .config import CORS_ORIGINS
 from .database import database_error_message, is_database_configured, load_deviation_records, save_deviation_record
 from .graph import get_graph
+from .observability import elapsed_ms, now_ms, observability_snapshot, observe_workflow, record_api_event
 from .pdf_utils import extract_text_from_pdf
 from .schemas import ChatRequest, ChatResponse, DeviationForm, RiskAssessment
 
@@ -28,6 +30,31 @@ app.add_middleware(
 LEDGER_PATH = Path(__file__).resolve().parent.parent / "sample_data" / "qms_ledger.json"
 
 
+@app.middleware("http")
+async def observe_api_requests(request: Request, call_next):
+    start = now_ms()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        record_api_event(
+            method=request.method,
+            path=request.url.path,
+            status_code=500,
+            duration_ms=elapsed_ms(start),
+            success=False,
+            error=exc,
+        )
+        raise
+    record_api_event(
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=elapsed_ms(start),
+        success=response.status_code < 400,
+    )
+    return response
+
+
 def _build_response(
     current_form: Dict[str, Any],
     current_risk: Dict[str, Any],
@@ -35,6 +62,7 @@ def _build_response(
     result_risk: Dict[str, Any],
     reply: str,
     intent: str | None = None,
+    observability: Dict[str, Any] | None = None,
 ) -> ChatResponse:
     changed = sorted(
         {k for k in result_form if result_form.get(k) != current_form.get(k)}
@@ -48,6 +76,7 @@ def _build_response(
         changed_fields=changed,
         status=status,
         intent=intent,
+        observability=observability,
     )
 
 
@@ -56,17 +85,23 @@ def health() -> Dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/observability")
+def get_observability() -> Dict[str, Any]:
+    return observability_snapshot()
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
     graph = get_graph()
-    state = graph.invoke(
-        {
-            "user_message": req.message,
-            "document_text": None,
-            "current_form": req.current_form.model_dump(),
-            "current_risk": req.current_risk.model_dump(),
-        }
-    )
+    with observe_workflow("chat") as trace:
+        state = graph.invoke(
+            {
+                "user_message": req.message,
+                "document_text": None,
+                "current_form": req.current_form.model_dump(),
+                "current_risk": req.current_risk.model_dump(),
+            }
+        )
     return _build_response(
         req.current_form.model_dump(),
         req.current_risk.model_dump(),
@@ -74,6 +109,7 @@ def chat(req: ChatRequest) -> ChatResponse:
         state["result_risk"],
         state["reply"],
         state.get("intent"),
+        trace.to_dict(),
     )
 
 
@@ -101,14 +137,15 @@ async def upload_document(
         raise HTTPException(status_code=422, detail="Could not extract any text from the uploaded file.")
 
     graph = get_graph()
-    state = graph.invoke(
-        {
-            "user_message": "",
-            "document_text": text,
-            "current_form": form_dict,
-            "current_risk": risk_dict,
-        }
-    )
+    with observe_workflow("document_upload") as trace:
+        state = graph.invoke(
+            {
+                "user_message": "",
+                "document_text": text,
+                "current_form": form_dict,
+                "current_risk": risk_dict,
+            }
+        )
     return _build_response(
         form_dict,
         risk_dict,
@@ -116,6 +153,7 @@ async def upload_document(
         state["result_risk"],
         state["reply"],
         "document_extraction",
+        trace.to_dict(),
     )
 
 

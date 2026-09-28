@@ -23,4 +23,6 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
+__pycache__/
+*.pyc
 *.sw?
