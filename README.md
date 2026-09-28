@@ -5,6 +5,7 @@ AI-powered pharmaceutical deviation intake and management system.
 ## Demo / Deployment
 
 - Repository: [https://github.com/dj-ayush/DeviationIQ](https://github.com/dj-ayush/DeviationIQ)
+- Live Demo: [https://gracious-enjoyment-production-524c.up.railway.app/](https://gracious-enjoyment-production-524c.up.railway.app/)
 - Frontend: [https://gracious-enjoyment-production-524c.up.railway.app/](https://gracious-enjoyment-production-524c.up.railway.app/)
 - Backend API: [https://aivoaassignment-production.up.railway.app](https://aivoaassignment-production.up.railway.app)
 - OpenAPI: [https://aivoaassignment-production.up.railway.app/openapi.json](https://aivoaassignment-production.up.railway.app/openapi.json)
@@ -304,7 +305,7 @@ VITE_API_BASE_URL=https://aivoaassignment-production.up.railway.app
 ## Project Structure
 
 ```text
-AIVOA-main/
+DeviationIQ/
   README.md
   backend/
     README.md
@@ -343,8 +344,8 @@ AIVOA-main/
 1. Clone the repository.
 
 ```bash
-git clone https://github.com/dj-ayush/AIVOA_Assignment.git
-cd AIVOA_Assignment
+git clone https://github.com/dj-ayush/DeviationIQ.git
+cd DeviationIQ
 ```
 
 2. Configure and run the backend.
